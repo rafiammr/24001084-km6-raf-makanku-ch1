@@ -1,42 +1,8 @@
 package app
 
+import datasource.*
 import model.menuFnb
-import model.orderFnb
-
-interface orderMethod {
-    fun order()
-}
-
-class Takeaway(private val takeawayOrder: Array<orderFnb>) : orderMethod {
-    override fun order() {
-        for (chat in takeawayOrder) { //create a looping
-            println(chat.orderChat)
-            Thread.sleep(5000) //create a delay
-        }
-        println("Pesanan selesai (3 detik) ...")
-        Thread.sleep(3000)
-    }
-}
-
-class Delivery(private val deliveryOrder: Array<orderFnb>) : orderMethod {
-    override fun order() {
-        for (chat in deliveryOrder) {
-            println(chat.orderChat)
-            Thread.sleep(5000)
-        }
-        println("Pesanan selesai (3 detik) ...")
-        Thread.sleep(3000)
-    }
-}
-
-class WrongOrderMethod() : orderMethod {
-    override fun order() {
-        println("========================================")
-        println("Metode order yang anda pilih tidak valid")
-        println("Metode order akan otomaatis menjadi Takeaway")
-        println("========================================")
-    }
-}
+import utils.*
 
 class App(var fnbName: String = "Warung Binar") {
 
@@ -46,50 +12,9 @@ class App(var fnbName: String = "Warung Binar") {
     private var totalPrice: Int = -1
     private var userOrder: Int = -1
 
-    private val fnbData = arrayOf(
-        //declare menu
-        menuFnb(
-            menu = "Ayam Bakar",
-            menuPrice = 50000,
-        ),
-        menuFnb(
-            menu = "Ayam Goreng",
-            menuPrice = 40000,
-        ),
-        menuFnb(
-            menu = "Ayam Geprek",
-            menuPrice = 40000,
-        ),
-        menuFnb(
-            menu = "Kulit Ayam Crispy",
-            menuPrice = 15000,
-        ),
-        menuFnb(
-            menu = "Sate Usus Ayam",
-            menuPrice = 5000,
-        )
-    )
-
-    private val takeawayOrder = arrayOf(
-        //declare takeaway order
-        orderFnb(
-            orderChat = "Makananmu sedang dimasak (5 detik) ....."
-
-        ),
-        orderFnb(
-            orderChat = "Makananmu sudah siap! Silahkan ambil di resto ya! (5 detik) ....."
-        )
-    )
-
-    private val deliveryOrder = arrayOf(
-        //declare delivery order
-        orderFnb(
-            orderChat = "Makananmu sedang dimasak (5 detik) ....."
-        ),
-        orderFnb(
-            orderChat = "Makananmu sudah siap! Driver segera menuju tempatmu! (5 detik) ....."
-        )
-    )
+    private val fnbData = FnbDataSourceImpl().getFnbList()
+    private val takeawayOrder = TakeawayDataSourceImpl().getTakeawayList()
+    private val deliveryOrder = DeliveryDataSourceImpl().getDeliveryList()
 
     private fun printHeader() { //display menu
         println("++==================================++")
@@ -105,8 +30,9 @@ class App(var fnbName: String = "Warung Binar") {
 
     private fun getSelectedFnb() {
         print("Whay do you want to buy ? 1/2/3/4/5 ")
-        try {
-            val selectedIndex = readln().toInt() //print selected menu
+        val selectedIndex = IOUtils.getInputInteger()
+        //print selected menu
+        selectedIndex?.let {
             if (selectedIndex in 1..fnbData.size) {
                 selectedFnb = fnbData[selectedIndex - 1]
                 println("Kamu memilih menu $selectedIndex")
@@ -118,8 +44,7 @@ class App(var fnbName: String = "Warung Binar") {
                 println("++==================================++")
                 getSelectedFnb()
             }
-
-        } catch (e: NumberFormatException) { //if input doesn't match the given format
+        } ?: run {
             println("++===========================++")
             println("||  Input menggunakan angka  ||")
             println("++===========================++")
@@ -155,39 +80,33 @@ class App(var fnbName: String = "Warung Binar") {
 
     }
 
-    private fun inputPayFnb() { //input money
+    private fun PayFnb() { //input money
         try {
             println("......................")
             print("Masukkan Jumlah Uang : ")
             userPay = readln().toInt()
+            if (userPay == totalPrice) {
+                println("==========================================")
+                println("Terimakasih, anda bersahil memesan makanan")
+                println("==========================================")
+            } else if (userPay > totalPrice){
+                val userMoney = (userPay - totalPrice) //calculate the change
+                println("==========================================")
+                println("Terimakasih, anda bersahil memesan makanan")
+                println("Kembalian anda : $userMoney")
+                println("==========================================")
+            } else{
+                println("==========================================")
+                println("Maaf, Pembayaran anda gagal!")
+                println("==========================================")
+                PayFnb()
+            }
 
         } catch (e: NumberFormatException) {
             println("++===========================++")
             println("||  Input menggunakan angka  ||")
             println("++===========================++")
-            inputPayFnb()
-        }
-    }
-
-    private fun payResult(userPay: Int, totalPrice: Int): String { //check amount of money
-        return if (userPay == totalPrice) {
-            """ 
-            ==========================================
-            Terimakasih, anda bersahil memesan makanan
-            ==========================================
-        """.trimIndent()
-        } else if (userPay > totalPrice) {
-            val userMoney = (userPay - totalPrice) //calculate the change
-            """
-            Terimakasih, anda bersahil memesan makanan
-            Kembalian anda : $userMoney
-            """.trimIndent()
-        } else {
-            """
-            ==========================================
-            Maaf, Pembayaran anda gagal!
-            ==========================================
-        """.trimIndent()
+            PayFnb()
         }
     }
 
@@ -213,7 +132,7 @@ class App(var fnbName: String = "Warung Binar") {
         }
     }
 
-    private fun orderResult(userOrder: Int): orderMethod { //check order input
+    private fun orderResult(userOrder: Int): OrderMethod { //check order input
         return when (userOrder) {
             1 -> {
                 Takeaway(takeawayOrder) //call class
@@ -234,8 +153,7 @@ class App(var fnbName: String = "Warung Binar") {
         printHeader()
         getSelectedFnb()
         manyFnb()
-        inputPayFnb()
-        println(payResult(userPay, totalPrice))
+        PayFnb()
         printFnbOrder()
         inputFnbOrder()
         val orderMethod = orderResult(userOrder)
